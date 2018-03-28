@@ -1,249 +1,3 @@
-
-class Game3D{
-
-	constructor(){
-
-		// events
-		window.addEventListener( 'resize', 	function() {
-			this.camera.aspect = window.innerWidth / window.innerHeight;
-			this.camera.updateProjectionMatrix();
-			this.renderer.setSize( window.innerWidth, window.innerHeight );
-		}.bind( this ), false );
-		
-		window.addEventListener( 'mousemove', this.rayTest.bind( this ), false );
-
-		this.content;
-		let aspect = window.innerWidth / window.innerHeight;
-		let radius = 60;
-		this.mouse = new THREE.Vector2();
-
-		this.camera = new THREE.PerspectiveCamera( 45, aspect, 1, 20000 );
-		this.camera.position.set( 0.0, radius * 6, radius * 6.5 );
-
-		this.rayCaster = new THREE.Raycaster();
-		this.scene = new THREE.Scene();
-
-		this.renderer = new THREE.WebGLRenderer( { antialias: true, alpha: true } );
-		this.renderer.setPixelRatio( window.devicePixelRatio );
-		this.renderer.setSize( window.innerWidth, window.innerHeight );
-		document.body.appendChild( this.renderer.domElement );
-
-		let controls = new THREE.OrbitControls( this.camera, this.renderer.domElement );
-		controls.target.set( 0, 20, 0 );
-
-		let ctx = this.renderer.context;
-		ctx.getShaderInfoLog = function () { return '' };
-		       
-		//Light
-		this.scene.add( new THREE.AmbientLight( 0xffffff ) );
-		let lightOffset = new THREE.Vector3( 0, 1000, 1000.0 ); 
-		let light = new THREE.DirectionalLight( 0x333333, 1.5 );
-		this.scene.add( light );
-
-		//let helper = new THREE.CameraHelper( light.shadow.camera );
-		//scene.add( helper );
-
-		// physics
-		this.world = new OIMO.World( { info:false, worldscale:100 } );
-		this.world.gravity = new OIMO.Vec3( 0, -9.8, 0 );
-
-		// The Bit of a collision group
-		let group1 = 1 << 0;  // 00000000 00000000 00000000 00000001
-		let group2 = 1 << 1;  // 00000000 00000000 00000000 00000010
-		let group3 = 1 << 2;  // 00000000 00000000 00000000 00000100
-		let all = 0xffffffff; // 11111111 11111111 11111111 11111111
-
-		// All the physics setting for rigidbody
-		this.config = [
-		    1, // The density of the shape.
-		    0.4, // The coefficient of friction of the shape.
-		    0.2, // The coefficient of restitution of the shape.
-		    1, // The bits of the collision groups to which the shape belongs.
-		    all // The bits of the collision groups with which the shape collides.
-		];
-
-		// -------- Pitch ---------   
-		new THREE.ObjectLoader().load( "models/pitch/stadium.json", function( pitch ) {
-		    
-		    // Pitch Base look in the plus          
-		    //materials[0].side = THREE.DoubleSide;                 
-		    //let ground =  new THREE.Mesh( geometry, materials[0] );
-		    //ground.scale.set( 20, 20, 20 );
-		    //ground.receiveShadow = true;
-		    //scope.scene.add( ground );
-
-		    pitch.position.set( -50, -30, -100 );
-		    pitch.scale.set( 800, 800, 800 );
-
-		    this.content = new THREE.Object3D();
-		    this.content.add( pitch );
-		    this.scene.add( this.content ); 
-
-		}.bind( this ));
-
-		//add ground
-		let ground = this.world.add( { size:[ 6000, 40, 5000 ], pos:[ 0, -20, 0 ], config: this.config } );
-
-		// ball mesh
-		let x = 0;
-		let z = 0;
-		let y = 100;
-		let w = 10;
-		let h = 10;
-		let d = 10;
-
-		let buffgeoSphere = new THREE.BufferGeometry();
-		buffgeoSphere.fromGeometry( new THREE.SphereGeometry( 1, 20, 10 ) );
-
-		let textureBall = new THREE.TextureLoader().load( 'images/ball.png' );                    
-		let materialBall = new THREE.MeshBasicMaterial( { color: 0xffffff, map: textureBall } );
-
-		this.ball3D = new THREE.Mesh( buffgeoSphere, materialBall );
-		this.ball3D.scale.set( w, w, w );
-		this.ball3D.castShadow = true;
-		this.ball3D.receiveShadow = true;
-		this.scene.add( this.ball3D );                
-
-		//ball body
-		this.config[3] = group2;
-		this.config[4] = all;
-		this.ball3DBody = this.world.add( { type:'sphere', size:[ w ], pos:[ x, y, z ], move:true, config: this.config, name:'sphere' } );
-
-		// paddle raycaster
-		this.vPaddle = new THREE.Object3D();
-
-		// paddle mesh
-		this.matBoxHit = new THREE.MeshBasicMaterial( { color: 0x383838 } );
-		this.matBox = new THREE.MeshBasicMaterial( { color: 0x58AA80 } );
-		let buffgeoBox = new THREE.BufferGeometry();
-		buffgeoBox.fromGeometry( new THREE.BoxGeometry( 1, 1, 1 ) );
-
-		this.paddle = new THREE.Mesh( buffgeoBox, this.matBox );
-		this.paddle.scale.set( 20, 40, 60 );
-		this.scene.add( this.paddle );
-
-		// paddle body
-		this.config[3] = 1;
-		this.config[4] = all;
-		this.paddleBody = this.world.add( { size:[ 20, 40, 60 ], pos:[ -150, 20, 0 ], rot:[ 0, 0, 0 ], move:true, noSleep:true, config: this.config, name:'paddle', kinematic:true } );
-
-		this.addWalls();
-		this.render();
-
-
-			let center = new THREE.Vector3();
-            let force = this.ball3D.position.clone().negate().normalize().multiplyScalar(0.1);
-            this.ball3DBody.applyImpulse( center, force );
-
-	};
-
-	render() {
-
-		const render = this.render.bind( this ); 
-	    requestAnimationFrame( render );
-	    this.renderer.render( this.scene, this.camera );
-
-	    this.world.step();
-
-	    // apply new position on last rigidbody
-	    this.paddleBody.setPosition( this.vPaddle.position );
-
-	    this.vPaddle.lookAt( new THREE.Vector3( 100, this.vPaddle.position.y, 0 ) );
-	    this.vPaddle.rotation.y += Math.PI/2;
-
-	    // apply new rotation on last rigidbody
-	    this.paddleBody.setQuaternion( this.vPaddle.quaternion );        
-
-	    this.ball3D.position.copy( this.ball3DBody.getPosition() );
-	    this.ball3D.quaternion.copy( this.ball3DBody.getQuaternion() );
-
-	    this.paddle.position.copy( this.paddleBody.getPosition() );
-	    this.paddle.quaternion.copy( this.paddleBody.getQuaternion() );
-
-	    // reset position
-	    if( this.ball3D.position.y < -100 ){
-	        let x = 0;
-	        let z = 0;
-	        let y = 100 + Math.random() * 100;
-	        this.ball3DBody.resetPosition( x, y, z );
-	    };
-
-	    // contact test
-	    if( this.world.checkContact( 'paddle', 'sphere' ) ) {
-	        this.paddle.material = this.matBox;
-	    } else {
-	        this.paddle.material = this.matBoxHit;
-	    };
-
-	};
-
-	//----------------------------------
-	//  RAY TEST
-	//----------------------------------
-	rayTest( e ) {
-
-	    this.mouse.x = ( e.clientX / window.innerWidth ) * 2 - 1;
-	    this.mouse.y = - ( e.clientY / window.innerHeight ) * 2 + 1;
-
-	    this.rayCaster.setFromCamera( this.mouse, this.camera );
-	    let intersects = this.rayCaster.intersectObjects( this.content.children, true );
-
-	    if ( intersects.length ) {
-	        this.vPaddle.position.copy( intersects[ 0 ].point.add( new THREE.Vector3( 0, 20, 0 ) ) );
-	    };
-
-	};
-
-	addWalls(){
-
-		// add walls
-		let walls = new Array();
-		let wallsBody = new Array();
-		let matWall = new THREE.MeshBasicMaterial( { color: 0x004400 } );
-		let buffgeoWall = new THREE.BufferGeometry();
-
-		let wallLeft = { x: 0, y: 15, z: -1950, w: 6000, h: 150, d: 10 };
-		let wallRight = { x: 0, y: 15, z: 1950, w: 6000, h: 150, d: 10 };
-		let wallTop = { x: -3000, y: 15, z: 0, w: 10, h: 150, d: 3900 };
-		let wallBottom = { x: 3000, y: 15, z: 0, w: 10, h: 150, d: 3900 };
-
-		walls.push( new THREE.Mesh( new THREE.BoxGeometry( wallLeft.w, wallLeft.h, wallLeft.d ), matWall ) );
-		this.scene.add( walls[0] );
-
-		walls.push( new THREE.Mesh( new THREE.BoxGeometry( wallRight.w, wallRight.h, wallRight.d ), matWall ) );
-		this.scene.add( walls[1] );
-
-		walls.push( new THREE.Mesh( new THREE.BoxGeometry( wallTop.w, wallTop.h, wallTop.d ), matWall ) );
-		this.scene.add( walls[2] );
-
-		walls.push( new THREE.Mesh( new THREE.BoxGeometry( wallBottom.w, wallBottom.h, wallBottom.d ), matWall ) );
-		this.scene.add( walls[3] );
-
-		wallsBody.push( this.world.add( { size:[ wallLeft.w, wallLeft.h, wallLeft.d ], pos:[ wallLeft.x, wallLeft.y, wallLeft.z ], move:false, config: this.config, name:'wallLeft' } ) );
-		walls[0].position.copy( wallsBody[0].getPosition() );
-		walls[0].quaternion.copy( wallsBody[0].getQuaternion() );
-
-		wallsBody.push( this.world.add( { size:[ wallRight.w, wallRight.h, wallRight.d ], pos:[ wallRight.x, wallRight.y, wallRight.z ], move:false, config: this.config, name:'wallright' } ) );
-		walls[1].position.copy( wallsBody[1].getPosition() );
-		walls[1].quaternion.copy( wallsBody[1].getQuaternion() );
-
-		wallsBody.push( this.world.add( { size:[ wallTop.w, wallTop.h, wallTop.d ], pos:[ wallTop.x, wallTop.y, wallTop.z ], move:false, config: this.config, name:'wallTop' } ) );
-		walls[2].position.copy( wallsBody[2].getPosition() );
-		walls[2].quaternion.copy( wallsBody[2].getQuaternion() );
-
-		wallsBody.push( this.world.add( { size:[ wallBottom.w, wallBottom.h, wallBottom.d ], pos:[ wallBottom.x, wallBottom.y, wallBottom.z ], move:false, config: this.config, name:'wallBottom' } ) );
-		walls[3].position.copy( wallsBody[3].getPosition() );
-		walls[3].quaternion.copy( wallsBody[3].getQuaternion() );
-
-	};
-
-};
-
-//let game3D = new Game3D();
-
-
-
-
 'use strict';
 
 class KickBall{
@@ -479,12 +233,11 @@ class KickBall{
 		//targetForDragging.material.opacity = 0.1;
 		//world.add(targetForDragging);	    
 
-
 		// paddle mesh
 		this.matBoxHit = new THREE.MeshBasicMaterial( { color: 0x383838 } );
 		this.matBox = new THREE.MeshBasicMaterial( { color: 0x58AA80 } );
 		let buffgeoBox = new THREE.BufferGeometry();
-		buffgeoBox.fromGeometry( new THREE.BoxGeometry( 20, 40, 60 ) );
+		buffgeoBox.fromGeometry( new THREE.BoxGeometry( 30, 80, 100 ) );
 
 		this.paddle = new THREE.Mesh( buffgeoBox, this.matBox );
 		this.scene.add( this.paddle );
@@ -493,15 +246,18 @@ class KickBall{
 		// paddle body
 		this.config[3] = 1;
 		this.config[4] = all;
-		this.paddleBody = this.world.add( { size:[ 20, 40, 60 ], pos:[ -150, 30, -150 ], rot:[ 0, 0, 0 ], move:true, noSleep:true, config: this.config, name:'paddle', kinematic:true } );
+		this.paddleBody = this.world.add( { size:[ 30, 80, 100 ], pos:[ -150, 30, -150 ], rot:[ 0, 0, 0 ], move:true, noSleep:true, config: this.config, name:'paddle', kinematic:true } );
 
 		this.worldContainer.add( this.paddle );
 
+		this.addPlayer();
+		/*
 		this.addCylinder( 100, 100 );
 		this.addCylinder( 0, 150 );
 		this.addCylinder( -150, -70 );
 		this.addCylinder( -80, 50 );
 		this.addCylinder( 50, -120 );
+		*/
 
 		this.eventAction = this.DRAG;
 		this.container.addEventListener( "mousedown", this.doEventStart.bind( this ) );
@@ -574,24 +330,8 @@ class KickBall{
 	    let time = performance.now();
 	    let elapsed = ( time - this.lastTime ) * .003;
 
-	    if ( this.state.phase == "simulate" ) {
-
-	    	//bend ball
-		    //let ballBend = this.ballBody.velocity;
-		    //ballBend = ballBend.cross( this.ballBody.angularVelocity );
-	    	//ballBend = ballBend.mult( elapsed * .0002 );
-	    	//this.ballBody.velocity = this.ballBody.velocity.vsub( ballBend );
-			//this.world.step( elapsed );
-
-	    };
-
 	    this.lastTime = time;
-
 	    this.paddleBody.setPosition( this.paddle.position );	    
-
-	    //this.ball.position.copy( this.ballBody.position );
-	    //this.ball.quaternion.copy( this.ballBody.quaternion );
-	    //this.ring.position.set( this.ball.position.x, this.ring.position.y, this.ball.position.z );
 
 	    this.world.step();
 
@@ -644,24 +384,6 @@ class KickBall{
 		walls[3].position.copy( wallsBody[3].getPosition() );
 		walls[3].quaternion.copy( wallsBody[3].getQuaternion() );
 	
-	};
-
-	addCylinder( x, z ) {
-
-		this.cylinderSpec = new THREE.Mesh(
-			new THREE.CylinderGeometry( 10, 20, 60, 16, 32 ),
-			new THREE.MeshLambertMaterial( { color:"yellow" } )
-		);
-
-		let cylinderMesh = this.cylinderSpec.clone();
-		cylinderMesh.position.set( x, 30, z );
-		this.cylinderMeshes.push( cylinderMesh );
-		this.worldContainer.add( cylinderMesh );
-	
-		let cylinderBody = this.world.add( { type:'cylinder', size:[ 20, 30, 20 ], pos:[ x, 30, z ], move:true, noSleep:true, config: this.config, name:'cylinder' + this.cylinderMeshes.length, kinematic:true } );
-		this.cylinderBodies.push( cylinderBody );
-
-
 	};
 
 	////////////////////////////
@@ -903,6 +625,100 @@ class KickBall{
 		};			
 
 	};
+
+	addCylinder( x, z, color ) {
+
+
+		this.cylinder = new THREE.Mesh(
+			new THREE.CylinderGeometry( 10, 20, 60, 16, 32 ),
+			color
+		);
+
+		let cylinderMesh = this.cylinder.clone();
+		cylinderMesh.position.set( x, 30, z );
+		this.cylinderMeshes.push( cylinderMesh );
+		this.worldContainer.add( cylinderMesh );
+	
+		let cylinderBody = this.world.add( { type:'cylinder', size:[ 20, 30, 20 ], pos:[ x, 30, z ], move:true, noSleep:true, config: this.config, name:'cylinder' + this.cylinderMeshes.length, kinematic:true } );
+		this.cylinderBodies.push( cylinderBody );
+
+
+	};
+
+
+	addPlayer(){
+	  
+	  	let redCylinder = new THREE.MeshBasicMaterial( { color: "red" } );
+		let blueCylinder = new THREE.MeshBasicMaterial( { color: "blue" } );
+
+		let formation = [
+			[ 5, 4, 1 ],
+			[ 4, 5, 1 ],
+			[ 4, 4, 2 ],
+			[ 4, 4, 1, 1 ],
+			[ 4, 3, 3 ],
+			[ 4, 3, 2 ],
+			[ 4, 2, 3, 1 ],
+			[ 4, 2, 2, 2 ],
+			[ 4, 2, 1, 3 ],
+			[ 4, 2, 4, 1 ],
+			[ 4, 1, 3, 2 ],
+			[ 4, 1, 2, 3 ],
+			[ 3, 5, 2, 2 ],
+			[ 3, 5, 1, 1 ],
+			[ 3, 4, 1, 2 ],
+			[ 3, 4, 3 ],
+			[ 3, 4, 2, 1 ]
+		];
+
+		let width = 2000;
+		let height = 1200;
+		let pointerFormation = 15;
+
+		let	stepX = 0;
+		let stepY = 0;
+
+		for ( let c = 0; c < formation[ pointerFormation ].length; c++ ) {
+			stepX += ( width / 2 ) / formation[ pointerFormation ].length;
+			for ( let i = 0; i < formation[ pointerFormation ][ c ]; i++ ){
+				let step = height / formation[ pointerFormation ][ c ]; 
+				stepY = step * ( i + 1 ) - step / 2;
+				this.addCylinder( stepX - 100, stepY, redCylinder );
+			
+			};
+			stepY = 0;
+		};
+
+		pointerFormation = 4;
+
+		for ( let c = 0; c < formation[ pointerFormation ].length; c++ ) {
+			stepX += ( width / 2 ) / formation[ pointerFormation ].length;
+			for ( let i = 0; i < formation[ pointerFormation ][ c ]; i++ ){
+				var step = height / formation[ pointerFormation ][ c ]; 
+				stepY = step * ( i + 1 ) - step / 2;
+				this.addCylinder( stepX - 310, stepY, blueCylinder );
+			};
+			stepY = 0;
+		};
+
+		//goalkeeper
+		this.addCylinder( 30, 300, redCylinder );
+		this.addCylinder( 950, 300, blueCylinder );
+
+	};
+
+	// CCD Continous Collision Detection
+	// Must predict next position and check if the ray trajectory if it intersects anything!
+	limitSphere( ball, objs ){
+		let raycaster = new THREE.Raycaster();
+  		raycaster.set( ball.position.clone(), ball.velocity.clone().unit() );
+  		raycaster.far = ball.velocity.length();
+  		let arr = raycaster.intersectObjects( objs );
+
+  		if( arr.length ){
+    		ball.position.copy( arr[0].point );
+  		};
+	};	
 
 };
 
