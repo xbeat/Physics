@@ -1,0 +1,122 @@
+<html lang="en">
+	<head>
+	    <title>Oimo Physics</title>
+	    <style>
+			html, body{
+				width: 100%;
+				height: 100%;
+				margin: 0;
+			}
+
+			body {
+				display: table;
+				background-color: #ACE;
+			}
+
+			#gameWrap {
+				width: 100%;
+				height: 100%;
+			}
+
+			html, body {
+				width: 100%;
+				height: 100%;
+			}
+
+			body {
+				background-color: #000;
+				margin: 0;
+				font-family: arial;
+			}
+
+			#blocker {
+
+				position: absolute;
+
+				width: 100%;
+				height: 100%;
+
+				background-color: rgba(0,0,0,0.5);
+
+			}
+
+			#display-container {
+				width: 100%;      
+				height: 100%;
+			}
+
+			#status-display {
+				position: absolute;
+				bottom: 100px;
+				right: 20px;
+				color: cyan;
+			}
+
+			#status-display ul {
+				list-style-type: none;
+			}
+
+			#stats {
+				position: absolute;
+				top: 15px;
+				left: 15px;
+			}
+
+			div .dg {
+				position: absolute;
+				top: 20px;
+				right: 20px;    
+			}
+
+			.virtualButton{
+				font-family: "Lucida Grande", Tahoma, Verdana, sans-serif;
+				position: absolute;
+				font-weight: 800;
+				width: 65px; 
+				height: 65px;
+				display: flex;
+				justify-content: center;
+				align-items: center;
+				cursor: pointer;
+				background: rgba( 255, 255, 255, .5 );
+				border-radius: 50%;
+				-ms-touch-action: none;
+				touch-action: none;
+				-webkit-user-select: none;
+				-moz-user-select: none;
+				-ms-user-select: none;
+				user-select: none;
+			}
+
+			#buttonShoot{
+				right: 200px;
+				bottom: 90px;
+			}
+
+			#buttonReset{
+				right: 120px;
+				bottom: 90px;
+			}
+
+			#menu {
+				font-family: helvetica;
+				position: absolute;
+				left:20px;
+				top: 10px;
+				color: #ffffff;
+				z-index: 2;
+			}   
+	    </style>
+	    <script type="text/javascript" src="js/dat.gui.min.js"></script>
+	    <script src="js/three.js"></script>
+	    <script src="js/OrbitControls.js"></script>
+	    <script src="js/oimo.js"></script> 
+	</head>
+	<body>
+		<div id="gameWrap"></div>
+		<div id="container"></div>
+	    <div class="virtualButton" id="buttonShoot">Shoot</div>
+	    <div class="virtualButton" id="buttonReset">Reset</div>    
+	</body>
+	<script src="js/game.js"></script>
+</html>
