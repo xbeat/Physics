@@ -95,21 +95,21 @@ class KickBall{
   
 		// Dat Gui 
 		this.shotControl = {
-		    forceX: 0, // left right
-		    forceY: 900, // up down
-		    forceZ: -900, // forward backward
-		    originX: -1.22570099936076236, //spin x
-		    originY: -0.550141484066893546, // spin y
+		    forceX: -0.03, // left right
+		    forceY: 0.03, // up down
+		    forceZ: 0.03, // forward backward
+		    spinX: -1.22570099936076236, //spin x
+		    spinY: -0.550141484066893546, // spin y
 		    shoot: this.kickBall.bind( this )
 		};
 
 		let gui = new dat.GUI( { autoPlace: false } );
 		document.getElementById( "container" ).appendChild( gui.domElement );
-		gui.add( this.shotControl, 'forceX', -3200, 3200 );
-		gui.add( this.shotControl, 'forceY', -900, 900 );
-		gui.add( this.shotControl, 'forceZ', -3200, 3200 );
-		gui.add( this.shotControl, 'originX', -0.55, 0.55 );
-		gui.add( this.shotControl, 'originY', -0.55, 0.55 );
+		gui.add( this.shotControl, 'forceX', -0.07, 0.07 );
+		gui.add( this.shotControl, 'forceY', 0, 0.07 );
+		gui.add( this.shotControl, 'forceZ', -0.07, 0.07 );
+		gui.add( this.shotControl, 'spinX', -0.55, 0.55 );
+		gui.add( this.shotControl, 'spinY', -0.55, 0.55 );
 		gui.add( this.shotControl, 'shoot' );
 
 	    //objects
@@ -135,10 +135,10 @@ class KickBall{
 		this.world.gravity = new OIMO.Vec3( 0, -9.8, 0 );
 
 		// The Bit of a collision group
-		let group1 = 1 << 0;  // 00000000 00000000 00000000 00000001
-		let group2 = 1 << 1;  // 00000000 00000000 00000000 00000010
-		let group3 = 1 << 2;  // 00000000 00000000 00000000 00000100
-		let all = 0xffffffff; // 11111111 11111111 11111111 11111111
+		this.group1 = 1 << 0;  // 00000000 00000000 00000000 00000001
+		this.group2 = 1 << 1;  // 00000000 00000000 00000000 00000010
+		this.group3 = 1 << 2;  // 00000000 00000000 00000000 00000100
+		this.all = 0xffffffff; // 11111111 11111111 11111111 11111111
 
 		// All the physics setting for rigidbody
 		this.config = [
@@ -146,14 +146,11 @@ class KickBall{
 		    0.4, // The coefficient of friction of the shape.
 		    0.2, // The coefficient of restitution of the shape.
 		    1, // The bits of the collision groups to which the shape belongs.
-		    all // The bits of the collision groups with which the shape collides.
+		    this.all // The bits of the collision groups with which the shape collides.
 		];
 
 		//add field
 		let field = this.world.add( { size:[ 6000, 40, 5000 ], pos:[ 0, -20, 0 ], config: this.config } );
-
-		this.config[3] = group2;
-		this.config[4] = all;
 		
 		// ball
 		let x = 0;
@@ -244,9 +241,8 @@ class KickBall{
 		this.paddle.position.set( -150, 30, -150 );
 
 		// paddle body
-		this.config[3] = 1;
-		this.config[4] = all;
-		this.paddleBody = this.world.add( { size:[ 30, 80, 100 ], pos:[ -150, 30, -150 ], rot:[ 0, 0, 0 ], move:true, noSleep:true, config: this.config, name:'paddle', kinematic:true } );
+
+		this.paddleBody = this.world.add( { size:[ 30, 80, 100 ], pos:[ -150, 30, -150 ], rot:[ 0, 0, 0 ], move:true, config: this.config, name:'paddle', kinematic:true } );
 
 		this.worldContainer.add( this.paddle );
 
@@ -313,11 +309,11 @@ class KickBall{
 	    let x = this.shotControl.forceX;
 	    let y = this.shotControl.forceY;
 	    let z = this.shotControl.forceZ;
-	    let originX = this.shotControl.originX;
-	    let originY = this.shotControl.originY;
+	    let spinX = this.shotControl.spinX;
+	    let spinY = this.shotControl.spinY;
 
 		let center = new THREE.Vector3();
-		let force = new THREE.Vector3( 0.06, 0.03, 0.04 );
+		let force = new THREE.Vector3( x, y, z );
         this.ball3DBody.applyImpulse( center, force );
 
 	};
@@ -335,11 +331,27 @@ class KickBall{
 
 	    this.world.step();
 
+		let i = this.cylinderBodies.length;
+
+		while ( i-- ){
+
+			if ( this.dragItem != undefined && this.dragItem.id == this.cylinderMeshes[i].id ){
+				this.cylinderBodies[i].setPosition( this.cylinderMeshes[i].position );
+				this.cylinderBodies[i].awake();				
+			} else {
+				this.cylinderBodies[i].isKinematic = false;
+				this.cylinderMeshes[i].position.copy( this.cylinderBodies[i].getPosition() );
+				this.cylinderMeshes[i].quaternion.copy( this.cylinderBodies[i].getQuaternion() );
+			};
+		};
+		
+
 	    this.ball3D.position.copy( this.ball3DBody.getPosition() );
 	    this.ball3D.quaternion.copy( this.ball3DBody.getQuaternion() );
+
 	    this.ring.position.set( this.ball3D.position.x, this.ring.position.y, this.ball3D.position.z );
 	    
-	    this.renderer.render( this.scene, this.camera )
+	    this.renderer.render( this.scene, this.camera );
 	    
 	};
 
@@ -423,7 +435,6 @@ class KickBall{
 
 		let item = intersects[ 0 ];
 		let objectHit = item.object;
-		let idx = this.cylinderMeshes.indexOf( objectHit );
 
 		switch ( this.eventAction ) {
 
@@ -433,10 +444,6 @@ class KickBall{
 					return false;
 				} else {
 					
-				    if ( idx !== -1 ) {
-						this.dragItemBody = this.cylinderBodies[ idx ];
-				    };
-
 					this.dragItem = objectHit;
 					this.worldContainer.add( this.targetForDragging );
 					this.targetForDragging.position.set( 0, item.point.y, 0 );
@@ -462,9 +469,9 @@ class KickBall{
 
 				if ( objectHit != this.ground ) {
 
-				    if ( idx !== -1 ) {
-				    	this.world.remove( this.cylinders[ idx ] );
-				    };
+				    //if ( idx !== -1 ) {
+				    //	this.world.remove( this.cylinders[ idx ] );
+				    //};
 
 					this.worldContainer.remove( objectHit );
 				};
@@ -496,11 +503,7 @@ class KickBall{
 		//a = Math.min( 45, Math.max( -45, coords.x ) );
 		//b = Math.min( 45, Math.max( -45, coords.z ) );
 	
-		this.dragItem.position.set( coords.x, 30, coords.z );
-		
-		if ( this.dragItemBody ){
-			this.dragItemBody.setPosition( this.dragItem.position );
-		};
+		this.dragItem.position.set( coords.x, 20, coords.z );
 
 	};
 
@@ -536,7 +539,7 @@ class KickBall{
 		};
 	
 		this.prev.x = this.start.x = x;
-		this.prev.y= this.start.x = y;
+		this.prev.y = this.start.x = y;
 		this.dragging = this.objectSelect( x, y );
 
 		let scope = this;
@@ -594,7 +597,6 @@ class KickBall{
 		
 		this.controls.enabled = true;
 		this.dragItem = null;
-		this.dragItemBody = null;
 		
 		let scope = this;
 
@@ -628,6 +630,9 @@ class KickBall{
 
 	addCylinder( x, z, color ) {
 
+		// All the physics setting for rigidbody
+		this.config[3] = this.group3;
+		this.config[4] = this.all;
 
 		this.cylinder = new THREE.Mesh(
 			new THREE.CylinderGeometry( 10, 20, 60, 16, 32 ),
@@ -636,15 +641,14 @@ class KickBall{
 
 		let cylinderMesh = this.cylinder.clone();
 		cylinderMesh.position.set( x, 30, z );
+		cylinderMesh.castShadow = true;
 		this.cylinderMeshes.push( cylinderMesh );
 		this.worldContainer.add( cylinderMesh );
 	
-		let cylinderBody = this.world.add( { type:'cylinder', size:[ 20, 30, 20 ], pos:[ x, 30, z ], move:true, noSleep:true, config: this.config, name:'cylinder' + this.cylinderMeshes.length, kinematic:true } );
+		let cylinderBody = this.world.add( { type:'cylinder', size:[ 20, 30, 20 ], pos:[ x, 30, z ], move:true, config: this.config, world: this.world, kinematic: false } );
 		this.cylinderBodies.push( cylinderBody );
 
-
 	};
-
 
 	addPlayer(){
 	  
