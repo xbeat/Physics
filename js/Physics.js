@@ -1,6 +1,6 @@
 'use strict';
 
-class KickBall{
+class Scene3D{
 
 	constructor() {
 
@@ -43,7 +43,7 @@ class KickBall{
 	    this.renderer = new THREE.WebGLRenderer( { antialias: true, alpha: true } );
 	    this.renderer.setSize( window.innerWidth, window.innerHeight );
 
-	    this.container = document.getElementById( "gameWrap" );
+	    this.container = document.getElementById( "container" );
 	    this.container.appendChild( this.renderer.domElement );
 
 	    this.camera = new THREE.PerspectiveCamera( 30, window.innerWidth / window.innerHeight, 1, 20000 );
@@ -71,7 +71,7 @@ class KickBall{
 		ctx.getShaderInfoLog = function () { return '' };
 	    
 	    this.scene = new THREE.Scene;
-  	    
+	    
 		//Lights
 		this.scene.add( new THREE.AmbientLight( 0xffffff ) );
 
@@ -108,8 +108,8 @@ class KickBall{
 		gui.add( this.shotControl, 'forceX', -0.07, 0.07 );
 		gui.add( this.shotControl, 'forceY', 0, 0.07 );
 		gui.add( this.shotControl, 'forceZ', -0.07, 0.07 );
-		gui.add( this.shotControl, 'spinX', -0.55, 0.55 );
-		gui.add( this.shotControl, 'spinY', -0.55, 0.55 );
+		gui.add( this.shotControl, 'spinX', -0.55, 0.55 ).listen();
+		gui.add( this.shotControl, 'spinY', -0.55, 0.55 ).listen();
 		gui.add( this.shotControl, 'shoot' );
 
 	    //objects
@@ -163,7 +163,7 @@ class KickBall{
 		let buffgeoSphere = new THREE.BufferGeometry();
 		buffgeoSphere.fromGeometry( new THREE.SphereGeometry( 1, 20, 10 ) );
 
-		let textureBall = new THREE.TextureLoader().load( 'images/ball.png' );                    
+		let textureBall = new THREE.TextureLoader().load( 'img/ball.png' );                    
 		let materialBall = new THREE.MeshBasicMaterial( { color: 0xffffff, map: textureBall } );
 
 		this.ball3D = new THREE.Mesh( buffgeoSphere, materialBall );
@@ -650,7 +650,7 @@ class KickBall{
 
 	};
 
-	addPlayer(){
+	addPlayer( redIdFormation = 15, blueIdFormation = 4 ){
 	  
 	  	let redCylinder = new THREE.MeshBasicMaterial( { color: "red" } );
 		let blueCylinder = new THREE.MeshBasicMaterial( { color: "blue" } );
@@ -661,14 +661,13 @@ class KickBall{
 			[ 4, 4, 2 ],
 			[ 4, 4, 1, 1 ],
 			[ 4, 3, 3 ],
-			[ 4, 3, 2 ],
+			[ 4, 3, 2, 1 ],
 			[ 4, 2, 3, 1 ],
 			[ 4, 2, 2, 2 ],
 			[ 4, 2, 1, 3 ],
-			[ 4, 2, 4, 1 ],
+			[ 4, 1, 4, 1 ],
 			[ 4, 1, 3, 2 ],
 			[ 4, 1, 2, 3 ],
-			[ 3, 5, 2, 2 ],
 			[ 3, 5, 1, 1 ],
 			[ 3, 4, 1, 2 ],
 			[ 3, 4, 3 ],
@@ -677,15 +676,15 @@ class KickBall{
 
 		let width = 2000;
 		let height = 1200;
-		let pointerFormation = 15;
+		let pointerFormation = redIdFormation;
 
 		let	stepX = 0;
 		let stepY = 0;
 
-		for ( let c = 0; c < formation[ pointerFormation ].length; c++ ) {
-			stepX += ( width / 2 ) / formation[ pointerFormation ].length;
-			for ( let i = 0; i < formation[ pointerFormation ][ c ]; i++ ){
-				let step = height / formation[ pointerFormation ][ c ]; 
+		for ( let c = 0; c < formation[ redIdFormation ].length; c++ ) {
+			stepX += ( width / 2 ) / formation[ redIdFormation ].length;
+			for ( let i = 0; i < formation[ redIdFormation ][ c ]; i++ ){
+				let step = height / formation[ redIdFormation ][ c ]; 
 				stepY = step * ( i + 1 ) - step / 2;
 				this.addCylinder( stepX - 100, stepY, redCylinder );
 			
@@ -693,12 +692,12 @@ class KickBall{
 			stepY = 0;
 		};
 
-		pointerFormation = 4;
+		pointerFormation = blueIdFormation;
 
-		for ( let c = 0; c < formation[ pointerFormation ].length; c++ ) {
-			stepX += ( width / 2 ) / formation[ pointerFormation ].length;
-			for ( let i = 0; i < formation[ pointerFormation ][ c ]; i++ ){
-				var step = height / formation[ pointerFormation ][ c ]; 
+		for ( let c = 0; c < formation[ blueIdFormation ].length; c++ ) {
+			stepX += ( width / 2 ) / formation[ blueIdFormation ].length;
+			for ( let i = 0; i < formation[ blueIdFormation ][ c ]; i++ ){
+				var step = height / formation[ blueIdFormation ][ c ]; 
 				stepY = step * ( i + 1 ) - step / 2;
 				this.addCylinder( stepX - 310, stepY, blueCylinder );
 			};
@@ -708,6 +707,76 @@ class KickBall{
 		//goalkeeper
 		this.addCylinder( 30, 300, redCylinder );
 		this.addCylinder( 950, 300, blueCylinder );
+
+	};
+
+
+	movePlayer( redIdFormation = 15, blueIdFormation = 4 ){
+	  
+		let formation = [
+			[ 5, 4, 1 ],
+			[ 4, 5, 1 ],
+			[ 4, 4, 2 ],
+			[ 4, 4, 1, 1 ],
+			[ 4, 3, 3 ],
+			[ 4, 3, 2, 1 ],
+			[ 4, 2, 3, 1 ],
+			[ 4, 2, 2, 2 ],
+			[ 4, 2, 1, 3 ],
+			[ 4, 1, 4, 1 ],
+			[ 4, 1, 3, 2 ],
+			[ 4, 1, 2, 3 ],
+			[ 3, 5, 1, 1 ],
+			[ 3, 4, 1, 2 ],
+			[ 3, 4, 3 ],
+			[ 3, 4, 2, 1 ]
+		];
+
+		let width = 2000;
+		let height = 1200;
+		let pointerFormation = redIdFormation;
+
+		let	stepX = 0;
+		let stepY = 0;
+		let indexPlayer = 0;
+
+		// removing all player phisycs
+		let i = this.cylinderBodies.length;
+
+		while ( i-- ){
+			this.world.remove( this.cylinderBodies[i] );
+		};
+
+		for ( let c = 0; c < formation[ redIdFormation ].length; c++ ) {
+			stepX += ( width / 2 ) / formation[ redIdFormation ].length;
+			for ( let i = 0; i < formation[ redIdFormation ][ c ]; i++ ){
+				let step = height / formation[ redIdFormation ][ c ]; 
+				stepY = step * ( i + 1 ) - step / 2;
+
+				this.cylinderBodies[indexPlayer] = this.world.add( { type:'cylinder', size:[ 20, 30, 20 ], pos:[ stepX, 30, stepY ], move:true, config: this.config, world: this.world, kinematic: false } );
+				indexPlayer++;
+			};
+			stepY = 0;
+		};
+
+		pointerFormation = blueIdFormation;
+
+		for ( let c = 0; c < formation[ blueIdFormation ].length; c++ ) {
+			stepX += ( width / 2 ) / formation[ blueIdFormation ].length;
+			for ( let i = 0; i < formation[ blueIdFormation ][ c ]; i++ ){
+				var step = height / formation[ blueIdFormation ][ c ]; 
+				stepY = step * ( i + 1 ) - step / 2;
+
+				this.cylinderBodies[indexPlayer] = this.world.add( { type:'cylinder', size:[ 20, 30, 20 ], pos:[ stepX, 30, stepY ], move:true, config: this.config, world: this.world, kinematic: false } );
+				indexPlayer++;
+			};
+			stepY = 0;
+		};
+
+		//Goalkeepr
+		this.cylinderBodies[indexPlayer] = this.world.add( { type:'cylinder', size:[ 20, 30, 20 ], pos:[ 30, 30, 300 ], move:true, config: this.config, world: this.world, kinematic: false } );
+		indexPlayer++;
+		this.cylinderBodies[indexPlayer] = this.world.add( { type:'cylinder', size:[ 20, 30, 20 ], pos:[ 950, 30, 300 ], move:true, config: this.config, world: this.world, kinematic: false } );
 
 	};
 
@@ -726,12 +795,12 @@ class KickBall{
 
 };
 
-let kickBall = new KickBall();
+let scene3D = new Scene3D();
 
 document.getElementById( "buttonShoot" ).addEventListener( "click", function() {
-	kickBall.kickBall();
+	scene3D.kickBall();
 });
 
 document.getElementById( "buttonReset" ).addEventListener( "click", function() {
-	kickBall.resetBall();
+	scene3D.resetBall();
 });
