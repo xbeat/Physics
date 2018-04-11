@@ -706,7 +706,7 @@ class Scene3D{
 
 		//goalkeeper
 		this.addCylinder( 30, 300, redCylinder );
-		this.addCylinder( 950, 300, blueCylinder );
+		this.addCylinder( 2000, 300, blueCylinder );
 
 	};
 
@@ -776,7 +776,7 @@ class Scene3D{
 		//Goalkeepr
 		this.cylinderBodies[indexPlayer] = this.world.add( { type:'cylinder', size:[ 20, 30, 20 ], pos:[ 30, 30, 300 ], move:true, config: this.config, world: this.world, kinematic: false } );
 		indexPlayer++;
-		this.cylinderBodies[indexPlayer] = this.world.add( { type:'cylinder', size:[ 20, 30, 20 ], pos:[ 950, 30, 300 ], move:true, config: this.config, world: this.world, kinematic: false } );
+		this.cylinderBodies[indexPlayer] = this.world.add( { type:'cylinder', size:[ 20, 30, 20 ], pos:[ 2000, 30, 300 ], move:true, config: this.config, world: this.world, kinematic: false } );
 
 	};
 
